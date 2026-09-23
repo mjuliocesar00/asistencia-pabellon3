@@ -16,6 +16,16 @@
     rel="stylesheet" />
   <!-- QR Code generator (vanilla JS, sin dependencias pesadas) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script>
+    // Fallback: si qrcode CDN falla, cargar desde unpkg
+    window.addEventListener('error', function (e) {
+      if (e.target && e.target.src && e.target.src.includes('qrcode')) {
+        var s = document.createElement('script');
+        s.src = 'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';
+        document.head.appendChild(s);
+      }
+    }, true);
+  </script>
 
   <style>
     /* ═══════════════════════════════════════════
@@ -1035,7 +1045,8 @@
       try {
         const resp = await fetch(`${APP_CONFIG.APPS_SCRIPT_URL}?action=token`, {
           method: "GET",
-          cache: "no-store"
+          cache: "no-store",
+          redirect: "follow"
         });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
@@ -1098,7 +1109,8 @@
       const sel = document.getElementById("sel-empleado");
       sel.innerHTML = '<option value="">Cargando…</option>';
       try {
-        const resp = await fetch(`${APP_CONFIG.APPS_SCRIPT_URL}?action=empleados`, { cache: "no-store" });
+        // redirect: follow necesario para manejar redirect 302 de Apps Script
+        const resp = await fetch(`${APP_CONFIG.APPS_SCRIPT_URL}?action=empleados`, { cache: "no-store", redirect: "follow" });
         const data = await resp.json();
         state.empleados = data.empleados || [];
 
