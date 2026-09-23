@@ -1,1 +1,1314 @@
-<html><head><title>Control de Asistencia</title></head><body><script>window.location.href="https://script.google.com/macros/s/AKfycbw2GQbxjHou-yTtY_vBPJSZx4pCsHgDXNvmRhAaTJbcvaNWuN300FrUsU67GIJJkjVClA/exec";</script><h2>Cargando...</h2></body></html>
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description"
+    content="Sistema de control de asistencia laboral con geolocalización y QR dinámico anti-spoofing." />
+  <meta name="theme-color" content="#0f0f23" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Control de Asistencia | Fichaje Digital</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <!-- QR Code generator (vanilla JS, sin dependencias pesadas) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+  <style>
+    /* ═══════════════════════════════════════════
+       DESIGN SYSTEM TOKENS
+    ═══════════════════════════════════════════ */
+    :root {
+      --bg-deep: #0a0a1a;
+      --bg-card: rgba(255, 255, 255, 0.05);
+      --bg-card-h: rgba(255, 255, 255, 0.09);
+      --border: rgba(255, 255, 255, 0.10);
+      --border-glow: rgba(99, 102, 241, 0.50);
+      --primary: #6366f1;
+      --primary-h: #818cf8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --text-1: #f8fafc;
+      --text-2: #94a3b8;
+      --text-3: #64748b;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+      --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.25);
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-1);
+      min-height: 100dvh;
+      overflow-x: hidden;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% -20%, rgba(99, 102, 241, 0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(16, 185, 129, 0.10) 0%, transparent 60%);
+    }
+
+    /* ── Layout ── */
+    .app-wrapper {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Header ── */
+    .app-header {
+      text-align: center;
+      padding: 24px 0 8px;
+    }
+
+    .app-logo {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4);
+    }
+
+    .app-logo svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .app-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .app-subtitle {
+      color: var(--text-2);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    /* ── Glassmorphism Card ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+
+    .card:hover {
+      border-color: var(--border-glow);
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-2);
+      margin-bottom: 16px;
+    }
+
+    /* ── Select de Empleado ── */
+    .select-wrap {
+      position: relative;
+    }
+
+    .select-wrap::after {
+      content: "▾";
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-2);
+      pointer-events: none;
+    }
+
+    select,
+    input[type="text"] {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-1);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      padding: 14px 42px 14px 16px;
+      appearance: none;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      cursor: pointer;
+    }
+
+    select:focus,
+    input[type="text"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    select option {
+      background: #1e1e3a;
+      color: var(--text-1);
+    }
+
+    /* ── Toggle Ingreso / Egreso ── */
+    .toggle-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .toggle-btn {
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 0;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.95rem;
+      transition: all var(--transition);
+      background: transparent;
+      color: var(--text-2);
+      letter-spacing: 0.05em;
+    }
+
+    .toggle-btn.active-ingreso {
+      border-color: var(--success);
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--success);
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+    }
+
+    .toggle-btn.active-egreso {
+      border-color: var(--danger);
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--danger);
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+    }
+
+    .toggle-btn .emoji {
+      font-size: 1.4rem;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    /* ── QR Display ── */
+    .qr-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .qr-canvas-wrap {
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      display: inline-block;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      position: relative;
+    }
+
+    #qr-display {
+      display: block;
+    }
+
+    .qr-watermark {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 10, 26, 0.75);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity var(--transition);
+      pointer-events: none;
+    }
+
+    .qr-watermark.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .qr-watermark .expire-icon {
+      font-size: 2.5rem;
+    }
+
+    .qr-watermark .expire-text {
+      color: var(--danger);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .qr-timer {
+      font-size: 0.78rem;
+      color: var(--text-2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .timer-bar {
+      width: 180px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .timer-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--success);
+      transition: width 1s linear, background 0.5s;
+      width: 100%;
+    }
+
+    .timer-fill.warning-fill {
+      background: var(--warning);
+    }
+
+    .timer-fill.danger-fill {
+      background: var(--danger);
+    }
+
+    .btn-refresh {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 12px;
+      color: var(--primary-h);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .btn-refresh:hover {
+      background: rgba(99, 102, 241, 0.25);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
+    }
+
+    .btn-refresh .spin {
+      display: inline-block;
+    }
+
+    .btn-refresh.spinning .spin {
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── GPS Status ── */
+    .gps-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+    }
+
+    .gps-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-3);
+      flex-shrink: 0;
+      transition: background var(--transition);
+    }
+
+    .gps-dot.ok {
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    .gps-dot.error {
+      background: var(--danger);
+    }
+
+    .gps-dot.loading {
+      background: var(--warning);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+    }
+
+    /* ── Botón Principal FICHAR ── */
+    .btn-fichar {
+      width: 100%;
+      padding: 22px;
+      border: none;
+      border-radius: var(--radius-xl);
+      font-family: 'Inter', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-fichar::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.1);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .btn-fichar:hover::before {
+      opacity: 1;
+    }
+
+    .btn-fichar:active {
+      transform: scale(0.97);
+    }
+
+    .btn-fichar:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-ingreso {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      box-shadow: 0 8px 32px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-egreso {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: #fff;
+      box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-fichar .btn-icon {
+      font-size: 1.4rem;
+    }
+
+    /* ── Loading spinner en botón ── */
+    .btn-spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    .btn-fichar.loading .btn-icon {
+      display: none;
+    }
+
+    .btn-fichar.loading .btn-text {
+      display: none;
+    }
+
+    .btn-fichar.loading .btn-spinner {
+      display: block;
+    }
+
+    /* ── Toast / Notificación ── */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 32px);
+      max-width: 440px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      border-radius: 16px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid transparent;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+      pointer-events: all;
+      animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .toast.fade-out {
+      animation: fadeDown 0.3s ease forwards;
+    }
+
+    @keyframes fadeDown {
+      to {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+    }
+
+    .toast.success {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    .toast.error {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .toast.warning {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .toast.info {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .toast-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .toast-body {
+      flex: 1;
+    }
+
+    .toast-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      line-height: 1.3;
+    }
+
+    .toast-msg {
+      font-size: 0.78rem;
+      color: var(--text-2);
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+
+    .toast-close {
+      background: none;
+      border: none;
+      color: var(--text-3);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 2px 4px;
+      flex-shrink: 0;
+      align-self: flex-start;
+    }
+
+    /* ── Panel de resultado del fichaje ── */
+    .result-panel {
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      text-align: center;
+      display: none;
+      animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .result-panel.show {
+      display: block;
+    }
+
+    .result-panel.approved {
+      background: rgba(16, 185, 129, 0.10);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    .result-panel.rejected {
+      background: rgba(239, 68, 68, 0.10);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .result-icon {
+      font-size: 3.5rem;
+      line-height: 1;
+    }
+
+    .result-status {
+      font-size: 1.2rem;
+      font-weight: 800;
+      margin: 10px 0 4px;
+    }
+
+    .result-meta {
+      font-size: 0.82rem;
+      color: var(--text-2);
+      line-height: 1.7;
+    }
+
+    .result-hours {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary-h);
+      margin-top: 8px;
+    }
+
+    /* ── Info chips ── */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 0.73rem;
+      color: var(--text-2);
+    }
+
+    .chip.ok {
+      border-color: rgba(16, 185, 129, 0.4);
+      color: var(--success);
+    }
+
+    .chip.err {
+      border-color: rgba(239, 68, 68, 0.4);
+      color: var(--danger);
+    }
+
+    .chip.warn {
+      border-color: rgba(245, 158, 11, 0.4);
+      color: var(--warning);
+    }
+
+    /* ── Instrucciones QR ── */
+    .instructions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .step-text {
+      font-size: 0.82rem;
+      color: var(--text-2);
+      line-height: 1.5;
+      padding-top: 4px;
+    }
+
+    .step-text strong {
+      color: var(--text-1);
+    }
+
+    /* ── Footer ── */
+    .app-footer {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--text-3);
+      padding-top: 8px;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* ── Responsive tweaks ── */
+    @media (max-width: 360px) {
+      .app-title {
+        font-size: 1.3rem;
+      }
+
+      .toggle-btn {
+        font-size: 0.82rem;
+        padding: 14px 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app-wrapper">
+
+    <!-- ── HEADER ── -->
+    <header class="app-header">
+      <div class="app-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <path d="M14 14h3v3m0 4h4m-4 0v-4m4-3h-4v3" />
+        </svg>
+      </div>
+      <h1 class="app-title">Control de Asistencia</h1>
+      <p class="app-subtitle" id="reloj-actual">Cargando hora…</p>
+    </header>
+
+    <!-- ── PASO 1: SELECCIÓN DE EMPLEADO ── -->
+    <section class="card" aria-labelledby="lbl-empleado">
+      <p class="card-title" id="lbl-empleado">👤 Paso 1 — Empleado</p>
+      <div class="select-wrap">
+        <select id="sel-empleado" aria-label="Seleccionar empleado">
+          <option value="">Cargando lista de empleados…</option>
+        </select>
+      </div>
+      <div id="dni-display" style="margin-top:10px;font-size:0.8rem;color:var(--text-3);display:none;">
+        DNI / Legajo: <strong id="dni-val">—</strong>
+      </div>
+    </section>
+
+    <!-- ── PASO 2: TIPO DE EVENTO ── -->
+    <section class="card" aria-labelledby="lbl-tipo">
+      <p class="card-title" id="lbl-tipo">📋 Paso 2 — Tipo de Evento</p>
+      <div class="toggle-group" role="group" aria-label="Tipo de movimiento">
+        <button class="toggle-btn active-ingreso" id="btn-ingreso" onclick="seleccionarTipo('INGRESO')"
+          aria-pressed="true">
+          <span class="emoji">🟢</span>INGRESO
+        </button>
+        <button class="toggle-btn" id="btn-egreso" onclick="seleccionarTipo('EGRESO')" aria-pressed="false">
+          <span class="emoji">🔴</span>EGRESO
+        </button>
+      </div>
+    </section>
+
+    <!-- ── PASO 3: QR DINÁMICO ── -->
+    <section class="card" aria-labelledby="lbl-qr">
+      <p class="card-title" id="lbl-qr">📱 Paso 3 — Escanear QR (del puesto físico)</p>
+      <div class="qr-container">
+        <div class="qr-canvas-wrap" id="qr-wrap">
+          <canvas id="qr-display" width="200" height="200" aria-label="Código QR dinámico"></canvas>
+          <div class="qr-watermark" id="qr-watermark">
+            <span class="expire-icon">⏱️</span>
+            <span class="expire-text">QR Expirado</span>
+            <button class="btn-refresh" onclick="renovarToken()">
+              <span class="spin">↻</span> Renovar QR
+            </button>
+          </div>
+        </div>
+        <div class="qr-timer" role="timer" aria-live="polite">
+          <span id="timer-label">Válido por <strong id="timer-secs">60</strong>s</span>
+          <div class="timer-bar">
+            <div class="timer-fill" id="timer-fill"></div>
+          </div>
+        </div>
+        <button class="btn-refresh" id="btn-renovar" onclick="renovarToken()" aria-label="Renovar código QR">
+          <span class="spin">↻</span> Nuevo QR
+        </button>
+      </div>
+      <div class="divider" style="margin:16px 0"></div>
+      <p style="font-size:0.75rem;color:var(--text-3);text-align:center;">
+        🔒 El QR se renueva automáticamente cada <strong style="color:var(--text-2)">60 segundos</strong> — no funciona
+        como foto.
+      </p>
+    </section>
+
+    <!-- ── GPS STATUS ── -->
+    <section class="card" aria-labelledby="lbl-gps">
+      <p class="card-title" id="lbl-gps">📍 Estado GPS</p>
+      <div class="gps-status">
+        <div class="gps-dot loading" id="gps-dot" aria-hidden="true"></div>
+        <span id="gps-text">Solicitando ubicación…</span>
+      </div>
+      <div class="chips" id="gps-chips" style="margin-top:12px;"></div>
+    </section>
+
+    <!-- ── BOTÓN FICHAR ── -->
+    <button class="btn-fichar btn-ingreso" id="btn-fichar" onclick="registrarFichaje()" disabled
+      aria-label="Registrar marcaje de ingreso">
+      <span class="btn-icon">🟢</span>
+      <span class="btn-text">MARCAR INGRESO</span>
+      <span class="btn-spinner" role="status" aria-label="Procesando…"></span>
+    </button>
+
+    <!-- ── RESULTADO ── -->
+    <div class="result-panel" id="result-panel" role="alert" aria-live="assertive"></div>
+
+    <!-- ── INSTRUCCIONES ── -->
+    <section class="card" aria-labelledby="lbl-instr">
+      <p class="card-title" id="lbl-instr">📖 ¿Cómo usar?</p>
+      <div class="instructions">
+        <div class="step">
+          <span class="step-num">1</span>
+          <p class="step-text">Selecciona tu <strong>nombre</strong> en la lista.</p>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <p class="step-text">Elige <strong>INGRESO</strong> al llegar o <strong>EGRESO</strong> al salir.</p>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <p class="step-text">Escanea el <strong>código QR</strong> del puesto de trabajo con la cámara de tu teléfono
+            — la URL se abrirá automáticamente aquí con el token ya cargado.</p>
+        </div>
+        <div class="step">
+          <span class="step-num">4</span>
+          <p class="step-text">Acepta el permiso de <strong>ubicación</strong> cuando el navegador lo solicite.</p>
+        </div>
+        <div class="step">
+          <span class="step-num">5</span>
+          <p class="step-text">Pulsa el botón <strong>MARCAR INGRESO / EGRESO</strong>. El sistema verifica que estés
+            dentro del radio autorizado.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      Sistema de Control de Asistencia · Argentina UTC-3<br>
+      Anti-spoofing: QR Dinámico + Geofencing GPS
+    </footer>
+  </div>
+
+  <!-- ── TOAST CONTAINER ── -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT — Lógica principal
+═══════════════════════════════════════════════════════════ -->
+  <script>
+    "use strict";
+
+    // ─────────────────────────────────────────────────────────
+    //  ① CONFIGURACIÓN FRONTEND
+    // ─────────────────────────────────────────────────────────
+    const APP_CONFIG = {
+      // ⚠️ REEMPLAZAR con tu URL de Google Apps Script desplegado
+      APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbw2GQbxjHou-yTtY_vBPJSZx4pCsHgDXNvmRhAaTJbcvaNWuN300FrUsU67GIJJkjVClA/exec",
+
+      // TTL del token en segundos (debe coincidir con Code.gs)
+      TOKEN_TTL: 60,
+
+      // Precisión GPS máxima aceptada en el cliente (pre-filtro)
+      MAX_GPS_ACCURACY: 100,
+
+      // Timeout para obtener GPS (ms)
+      GPS_TIMEOUT: 20000,
+
+      // Máximo tiempo de espera antes de permitir fichar (ms)
+      GPS_MAX_AGE: 10000
+    };
+
+    // ─────────────────────────────────────────────────────────
+    //  ② ESTADO GLOBAL
+    // ─────────────────────────────────────────────────────────
+    const state = {
+      tipoEvento: "INGRESO",
+      tokenQR: null,
+      tokenExpTS: 0,
+      timerInterval: null,
+      gpsCoords: null,
+      gpsOk: false,
+      watchId: null,
+      empleados: [],
+      cargando: false
+    };
+
+    // Leer token de la URL (cuando el empleado escanea el QR físico)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenDeURL = urlParams.get("t");
+
+    // ─────────────────────────────────────────────────────────
+    //  ③ RELOJ EN TIEMPO REAL (Argentina UTC-3)
+    // ─────────────────────────────────────────────────────────
+    function iniciarReloj() {
+      const actualizar = () => {
+        const ahora = new Date().toLocaleString("es-AR", {
+          timeZone: "America/Argentina/Buenos_Aires",
+          weekday: "long", year: "numeric", month: "long", day: "numeric",
+          hour: "2-digit", minute: "2-digit", second: "2-digit"
+        });
+        document.getElementById("reloj-actual").textContent = ahora;
+      };
+      actualizar();
+      setInterval(actualizar, 1000);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ④ TOGGLE INGRESO / EGRESO
+    // ─────────────────────────────────────────────────────────
+    function seleccionarTipo(tipo) {
+      state.tipoEvento = tipo;
+      const btnI = document.getElementById("btn-ingreso");
+      const btnE = document.getElementById("btn-egreso");
+      const btnF = document.getElementById("btn-fichar");
+
+      btnI.className = "toggle-btn" + (tipo === "INGRESO" ? " active-ingreso" : "");
+      btnE.className = "toggle-btn" + (tipo === "EGRESO" ? " active-egreso" : "");
+      btnI.setAttribute("aria-pressed", tipo === "INGRESO");
+      btnE.setAttribute("aria-pressed", tipo === "EGRESO");
+
+      if (tipo === "INGRESO") {
+        btnF.className = "btn-fichar btn-ingreso";
+        btnF.querySelector(".btn-icon").textContent = "🟢";
+        btnF.querySelector(".btn-text").textContent = "MARCAR INGRESO";
+      } else {
+        btnF.className = "btn-fichar btn-egreso";
+        btnF.querySelector(".btn-icon").textContent = "🔴";
+        btnF.querySelector(".btn-text").textContent = "MARCAR EGRESO";
+      }
+      actualizarEstadoBoton();
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ⑤ GEOLOCALIZACIÓN (GPS alto impacto anti-spoofing)
+    // ─────────────────────────────────────────────────────────
+    function iniciarGPS() {
+      if (!("geolocation" in navigator)) {
+        setGPSStatus("error", "❌ Geolocalización no soportada en este navegador.");
+        return;
+      }
+      setGPSStatus("loading", "Solicitando permisos de ubicación…");
+
+      const geoOptions = {
+        enableHighAccuracy: true,   // Fuerza GPS real (evita IP spoofing)
+        timeout: APP_CONFIG.GPS_TIMEOUT,
+        maximumAge: APP_CONFIG.GPS_MAX_AGE
+      };
+
+      state.watchId = navigator.geolocation.watchPosition(
+        onGPSSuccess,
+        onGPSError,
+        geoOptions
+      );
+    }
+
+    function onGPSSuccess(pos) {
+      const { latitude, longitude, accuracy } = pos.coords;
+      state.gpsCoords = { lat: latitude, lng: longitude, accuracy };
+
+      const chipsEl = document.getElementById("gps-chips");
+
+      if (accuracy > APP_CONFIG.MAX_GPS_ACCURACY) {
+        state.gpsOk = false;
+        setGPSStatus("error", `Señal GPS débil (precisión ${Math.round(accuracy)}m). Salga a un espacio abierto.`);
+        chipsEl.innerHTML = chipHtml("warn", `⚠️ Precisión: ${Math.round(accuracy)}m — Se requiere < ${APP_CONFIG.MAX_GPS_ACCURACY}m`);
+      } else {
+        state.gpsOk = true;
+        setGPSStatus("ok", `Ubicación activa · precisión ±${Math.round(accuracy)}m`);
+        chipsEl.innerHTML =
+          chipHtml("ok", `✅ Precisión: ±${Math.round(accuracy)}m`) +
+          chipHtml("ok", `📍 ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+      }
+      actualizarEstadoBoton();
+    }
+
+    function onGPSError(err) {
+      state.gpsOk = false;
+      const msgs = {
+        1: "Permiso de ubicación denegado. Habilítelo en ajustes del navegador.",
+        2: "Posición no disponible. Verifique que el GPS esté activado.",
+        3: "Tiempo de espera GPS agotado. Intente en un lugar con mejor señal."
+      };
+      setGPSStatus("error", msgs[err.code] || "Error desconocido de GPS.");
+      document.getElementById("gps-chips").innerHTML =
+        chipHtml("err", `❌ Error GPS: ${msgs[err.code] || err.message}`);
+      actualizarEstadoBoton();
+    }
+
+    function setGPSStatus(tipo, mensaje) {
+      const dot = document.getElementById("gps-dot");
+      const text = document.getElementById("gps-text");
+      dot.className = `gps-dot ${tipo}`;
+      text.textContent = mensaje;
+    }
+
+    function chipHtml(tipo, texto) {
+      return `<span class="chip ${tipo}">${texto}</span>`;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ⑥ TOKEN QR DINÁMICO
+    // ─────────────────────────────────────────────────────────
+    async function cargarToken() {
+      // Si viene token en la URL, usarlo directamente (empleado escaneó QR físico)
+      if (tokenDeURL) {
+        state.tokenQR = tokenDeURL;
+        // Leer timestamp del payload (sin verificar firma aquí — se verifica en el servidor)
+        try {
+          const [b64] = tokenDeURL.split(".");
+          const payload = atob(b64);
+          const ts = parseInt(payload.split("_")[0], 10);
+          state.tokenExpTS = (ts + APP_CONFIG.TOKEN_TTL) * 1000;
+          renderQR(tokenDeURL);
+          iniciarTimerQR();
+          mostrarToast("info", "QR Escaneado", "Token cargado desde el QR físico.", 4000);
+        } catch {
+          // Fallback: renovar desde servidor
+          await renovarToken();
+        }
+        return;
+      }
+      // Si no, solicitar token al servidor
+      await renovarToken();
+    }
+
+    async function renovarToken() {
+      const btn = document.getElementById("btn-renovar");
+      btn.classList.add("spinning");
+      btn.disabled = true;
+
+      try {
+        const resp = await fetch(`${APP_CONFIG.APPS_SCRIPT_URL}?action=token`, {
+          method: "GET",
+          cache: "no-store"
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        state.tokenQR = data.token;
+        state.tokenExpTS = Date.now() + (data.ttl || APP_CONFIG.TOKEN_TTL) * 1000;
+        renderQR(data.token);
+        iniciarTimerQR();
+        document.getElementById("qr-watermark").classList.remove("show");
+      } catch (err) {
+        mostrarToast("error", "Error de red", `No se pudo obtener un token QR: ${err.message}`, 6000);
+      } finally {
+        btn.classList.remove("spinning");
+        btn.disabled = false;
+      }
+    }
+
+    function renderQR(token) {
+      const canvas = document.getElementById("qr-display");
+      // Construir URL que el QR físico codificaría:
+      // Cuando el empleado escanea el QR del panel → esta URL con ?t=TOKEN
+      const qrURL = `${window.location.origin}${window.location.pathname}?t=${encodeURIComponent(token)}`;
+      QRCode.toCanvas(canvas, qrURL, {
+        width: 200, margin: 1,
+        color: { dark: "#0a0a1a", light: "#ffffff" }
+      }, err => { if (err) console.error("QR render error:", err); });
+    }
+
+    function iniciarTimerQR() {
+      clearInterval(state.timerInterval);
+
+      const totalMs = APP_CONFIG.TOKEN_TTL * 1000;
+      const timerSec = document.getElementById("timer-secs");
+      const timerFill = document.getElementById("timer-fill");
+      const watermark = document.getElementById("qr-watermark");
+
+      state.timerInterval = setInterval(() => {
+        const remaining = Math.max(0, state.tokenExpTS - Date.now());
+        const segs = Math.ceil(remaining / 1000);
+        const pct = (remaining / totalMs) * 100;
+
+        timerSec.textContent = segs;
+        timerFill.style.width = `${pct}%`;
+
+        timerFill.className = "timer-fill" +
+          (pct > 40 ? "" : pct > 15 ? " warning-fill" : " danger-fill");
+
+        if (remaining <= 0) {
+          clearInterval(state.timerInterval);
+          watermark.classList.add("show");
+          state.tokenQR = null;
+          actualizarEstadoBoton();
+        }
+      }, 1000);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ⑦ LISTA DE EMPLEADOS
+    // ─────────────────────────────────────────────────────────
+    async function cargarEmpleados() {
+      const sel = document.getElementById("sel-empleado");
+      sel.innerHTML = '<option value="">Cargando…</option>';
+      try {
+        const resp = await fetch(`${APP_CONFIG.APPS_SCRIPT_URL}?action=empleados`, { cache: "no-store" });
+        const data = await resp.json();
+        state.empleados = data.empleados || [];
+
+        if (state.empleados.length === 0) {
+          sel.innerHTML = '<option value="">Sin empleados registrados en la planilla</option>';
+          return;
+        }
+        sel.innerHTML = '<option value="">— Seleccionar empleado —</option>' +
+          state.empleados.map(e =>
+            `<option value="${e.dni}" data-nombre="${e.nombre}">${e.nombre} (${e.dni})</option>`
+          ).join("");
+
+        sel.addEventListener("change", () => {
+          const opt = sel.options[sel.selectedIndex];
+          const dni = opt.value;
+          const nombre = opt.dataset.nombre || "";
+          const dniDisp = document.getElementById("dni-display");
+          if (dni) {
+            document.getElementById("dni-val").textContent = dni;
+            dniDisp.style.display = "block";
+          } else {
+            dniDisp.style.display = "none";
+          }
+          actualizarEstadoBoton();
+        });
+
+      } catch (err) {
+        sel.innerHTML = '<option value="">Error al cargar empleados – verifique la URL</option>';
+        mostrarToast("error", "Error", `No se cargó la lista de empleados: ${err.message}`, 7000);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ⑧ HABILITACIÓN DEL BOTÓN FICHAR
+    // ─────────────────────────────────────────────────────────
+    function actualizarEstadoBoton() {
+      const sel = document.getElementById("sel-empleado");
+      const btnF = document.getElementById("btn-fichar");
+      const ok = sel.value && state.gpsOk && state.tokenQR && !state.cargando;
+      btnF.disabled = !ok;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ⑨ REGISTRO DE FICHAJE — Envío al backend
+    // ─────────────────────────────────────────────────────────
+    async function registrarFichaje() {
+      if (state.cargando) return;
+
+      const sel = document.getElementById("sel-empleado");
+      const opt = sel.options[sel.selectedIndex];
+      const dni = opt.value;
+      const nombre = opt.dataset.nombre || opt.text;
+
+      if (!dni) {
+        mostrarToast("warning", "Atención", "Selecciona tu nombre de la lista.", 4000);
+        return;
+      }
+      if (!state.tokenQR) {
+        mostrarToast("error", "QR Expirado", "El código QR expiró. Renuévalo y vuelve a intentarlo.", 5000);
+        return;
+      }
+      if (!state.gpsOk || !state.gpsCoords) {
+        mostrarToast("error", "GPS Requerido", "La ubicación GPS no está disponible o es imprecisa.", 5000);
+        return;
+      }
+
+      state.cargando = true;
+      const btnF = document.getElementById("btn-fichar");
+      btnF.classList.add("loading");
+      btnF.disabled = true;
+      ocultarResultado();
+
+      const payload = {
+        token: state.tokenQR,
+        dni: dni,
+        nombre: nombre,
+        tipo: state.tipoEvento,
+        lat: state.gpsCoords.lat,
+        lng: state.gpsCoords.lng,
+        accuracy: state.gpsCoords.accuracy,
+        userAgent: navigator.userAgent
+      };
+
+      try {
+        const resp = await fetch(APP_CONFIG.APPS_SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: { "Content-Type": "application/json" }
+        });
+
+        const data = await resp.json();
+        mostrarResultado(data);
+
+        // Renovar token automáticamente después del fichaje exitoso
+        if (data.ok && data.estado === "APROBADO") {
+          setTimeout(renovarToken, 2000);
+        }
+
+      } catch (err) {
+        mostrarToast("error", "Error de conexión",
+          `No se pudo conectar con el servidor: ${err.message}. Verifique su conexión y la URL configurada.`, 8000);
+      } finally {
+        state.cargando = false;
+        btnF.classList.remove("loading");
+        actualizarEstadoBoton();
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ⑩ PANEL DE RESULTADO
+    // ─────────────────────────────────────────────────────────
+    function mostrarResultado(data) {
+      const panel = document.getElementById("result-panel");
+
+      if (data.ok && data.estado === "APROBADO") {
+        panel.className = "result-panel show approved";
+        panel.innerHTML = `
+      <div class="result-icon">${data.tipo === "INGRESO" ? "✅" : "🏁"}</div>
+      <div class="result-status" style="color:var(--success)">
+        ${data.tipo === "INGRESO" ? "¡INGRESO REGISTRADO!" : "¡EGRESO REGISTRADO!"}
+      </div>
+      <div class="result-meta">
+        <strong>${data.nombre}</strong><br>
+        📅 ${data.fecha} · 🕐 ${data.hora}<br>
+        📍 A ${data.distancia}m del punto de control
+      </div>
+      ${data.tipo === "EGRESO" && data.horasTrabajadas !== "—"
+            ? `<div class="result-hours">⏱️ ${data.horasTrabajadas} trabajadas</div>`
+            : ""}
+    `;
+        mostrarToast("success", "Fichaje Aprobado", data.motivo, 6000);
+
+      } else if (data.ok && data.estado === "RECHAZADO") {
+        panel.className = "result-panel show rejected";
+        panel.innerHTML = `
+      <div class="result-icon">🚫</div>
+      <div class="result-status" style="color:var(--danger)">FICHAJE RECHAZADO</div>
+      <div class="result-meta">${data.motivo}</div>
+    `;
+        mostrarToast("error", "Fuera del Perímetro", data.motivo, 7000);
+
+      } else {
+        panel.className = "result-panel show rejected";
+        panel.innerHTML = `
+      <div class="result-icon">⚠️</div>
+      <div class="result-status" style="color:var(--warning)">VERIFICACIÓN FALLIDA</div>
+      <div class="result-meta">${data.motivo || "Error desconocido"}</div>
+    `;
+        mostrarToast("error", "Error de Validación", data.motivo || "Intente nuevamente.", 7000);
+      }
+
+      panel.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    function ocultarResultado() {
+      const panel = document.getElementById("result-panel");
+      panel.className = "result-panel";
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ⑪ SISTEMA DE TOASTS
+    // ─────────────────────────────────────────────────────────
+    function mostrarToast(tipo, titulo, mensaje, duracion = 5000) {
+      const iconos = { success: "✅", error: "❌", warning: "⚠️", info: "ℹ️" };
+      const contenedor = document.getElementById("toast-container");
+
+      const toast = document.createElement("div");
+      toast.className = `toast ${tipo}`;
+      toast.innerHTML = `
+    <span class="toast-icon" aria-hidden="true">${iconos[tipo] || "🔔"}</span>
+    <div class="toast-body">
+      <div class="toast-title">${titulo}</div>
+      ${mensaje ? `<div class="toast-msg">${mensaje}</div>` : ""}
+    </div>
+    <button class="toast-close" onclick="cerrarToast(this.parentElement)" aria-label="Cerrar notificación">✕</button>
+  `;
+
+      contenedor.appendChild(toast);
+
+      setTimeout(() => cerrarToast(toast), duracion);
+    }
+
+    function cerrarToast(toast) {
+      if (!toast || !toast.parentElement) return;
+      toast.classList.add("fade-out");
+      setTimeout(() => toast.remove(), 350);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ⑫ INICIALIZACIÓN
+    // ─────────────────────────────────────────────────────────
+    async function inicializar() {
+      iniciarReloj();
+      iniciarGPS();
+      await cargarEmpleados();
+      await cargarToken();
+      seleccionarTipo("INGRESO");
+
+      // Auto-renovar token 10s antes de que expire
+      setInterval(() => {
+        const restante = state.tokenExpTS - Date.now();
+        if (restante > 0 && restante < 10000 && !tokenDeURL) {
+          // Solo auto-renovar si el token no vino de URL (QR físico)
+          renovarToken();
+        }
+      }, 5000);
+    }
+
+    document.addEventListener("DOMContentLoaded", inicializar);
+  </script>
+</body>
+
+</html>
